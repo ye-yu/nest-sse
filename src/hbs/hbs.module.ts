@@ -24,6 +24,7 @@ export class HandlebarsModule implements OnApplicationBootstrap {
     this.logger.debug('Starting debugger session to locate function location');
     const session = new Session();
     const parsedScripts: Record<string, any> = {};
+    session.connect();
     session.on('Debugger.scriptParsed', (result) => {
       parsedScripts[result.params.scriptId] = result.params;
     });
@@ -35,10 +36,11 @@ export class HandlebarsModule implements OnApplicationBootstrap {
     );
 
     for (const [key, value] of ViewConfiguration.entries()) {
+      global['hbs.classFn'] = key;
       const evaluated: Runtime.EvaluateReturnType = await post(
         'Runtime.evaluate',
         {
-          expression: `key`,
+          expression: `global['hbs.classFn']`,
           objectGroup: this.PREFIX,
         },
       );
@@ -82,9 +84,10 @@ export class HandlebarsModule implements OnApplicationBootstrap {
       const localPath = url.substr(7);
 
       this.logger.debug(
-        `${key} using view directory: ${localPath} /../ ${value}`,
+        `${key.name} using view directory: ${localPath} /../ ${value}`,
       );
     }
+    delete global['hbs.classFn'];
 
     this.logger.debug(`Disconnecting debugger session`);
 

@@ -7,6 +7,8 @@ import {
 import { ViewConfiguration } from './shared/storage';
 import { Debugger, Runtime, Session } from 'inspector';
 import { promisify } from 'util';
+import * as path from 'path';
+import { stat } from 'fs/promises';
 
 @Module({})
 export class HandlebarsModule implements OnApplicationBootstrap {
@@ -36,6 +38,7 @@ export class HandlebarsModule implements OnApplicationBootstrap {
     );
 
     for (const [key, value] of ViewConfiguration.entries()) {
+      const className = key.name;
       global['hbs.classFn'] = key;
       const evaluated: Runtime.EvaluateReturnType = await post(
         'Runtime.evaluate',
@@ -58,7 +61,7 @@ export class HandlebarsModule implements OnApplicationBootstrap {
       const scriptId = location.value?.value?.scriptId;
       if (!scriptId) {
         const error = new Error(
-          `Cannot find scriptId for class function: ${key.toString()}`,
+          `Cannot find scriptId for class function: ${className}`,
         );
         error.cause = location;
         this.logger.error(error, error.stack);
@@ -68,24 +71,45 @@ export class HandlebarsModule implements OnApplicationBootstrap {
       const scriptInfo = parsedScripts[scriptId];
       if (!scriptInfo) {
         const error = new Error(
-          `Cannot find scriptInfo for class function: ${key.toString()}`,
+          `Cannot find scriptInfo for class function: ${className}`,
         );
         error.cause = { scriptId, parsedScripts };
         this.logger.error(error, error.stack);
         continue;
       }
 
-      let url = scriptInfo.url;
+      const url = scriptInfo.url;
 
       if (!url.startsWith('file://')) {
-        url = `file://${url}`;
+        const error = new Error(
+          `File location for ${className} is not in local directory`,
+        );
+        this.logger.error(error.message, error.stack);
+        continue;
       }
 
-      const localPath = url.substr(7);
+      const localPath =
+        process.platform === 'win32' ? url.substr(8) : url.substr(7);
+      const viewsPath = path.resolve(localPath, '..', value);
 
-      this.logger.debug(
-        `${key.name} using view directory: ${localPath} /../ ${value}`,
-      );
+      try {
+        const viewsPathStat = await stat(viewsPath);
+        if (viewsPathStat.isDirectory()) {
+          const error = new Error(
+            `Views path for ${className}: ${viewsPath} is not a directory`,
+          );
+          this.logger.error(error.message, error.stack);
+          continue;
+        }
+      } catch (error) {
+        this.logger.error(
+          `Error on evaluating views path for ${className}: ${viewsPath}`,
+          error.stack,
+        );
+        continue;
+      }
+
+      this.logger.debug(`${className} using view directory: ${viewsPath}`);
     }
     delete global['hbs.classFn'];
 

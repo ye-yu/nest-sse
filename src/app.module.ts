@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { CatModule } from './cat/cat.module';
+import { HandlebarsModule } from './handlebars/handlebars.module';
 
 @Module({
-  imports: [],
+  imports: [CatModule, HandlebarsModule],
   controllers: [AppController],
   providers: [AppService],
 })

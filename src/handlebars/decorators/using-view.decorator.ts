@@ -45,7 +45,8 @@ export function UsingView(path: any): ClassDecorator {
         `Applying @Render('${classFn.name}.${propertyName}') to ${propertyName}`,
       );
       Render(viewName)(classFn, propertyName, descriptor);
+      UseInterceptors(PolyfillResponse)(classFn, propertyName, descriptor);
     }
-    return UseInterceptors(PolyfillResponse)(classFn);
+    return null;
   };
 }

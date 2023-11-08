@@ -8,7 +8,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { ViewKeys, ViewTemplates } from '../shared/storage';
 
 function createRenderCallbackFor(
@@ -36,10 +36,6 @@ export class PolyfillResponse implements NestInterceptor {
     context: ExecutionContext,
     next: CallHandler<any>,
   ): Observable<any> {
-    const request: Request = context.switchToHttp().getRequest();
-    if (request.method?.toLocaleLowerCase() !== 'get') {
-      return next.handle();
-    }
     const response: Response = context.switchToHttp().getResponse();
     response.render = function () {
       const view = arguments[0];

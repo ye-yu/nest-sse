@@ -4,11 +4,17 @@ import {
   OnApplicationBootstrap,
   Optional,
 } from '@nestjs/common';
-import { ViewConfiguration } from './shared/storage';
+import {
+  ViewConfiguration,
+  ViewKeys,
+  ViewPaths,
+  ViewTemplates,
+} from './shared/storage';
 import { Debugger, Runtime, Session } from 'inspector';
 import { promisify } from 'util';
 import * as path from 'path';
-import { stat } from 'fs/promises';
+import { readFile, readdir, stat } from 'fs/promises';
+import Handlebars from 'handlebars';
 
 @Module({})
 export class HandlebarsModule implements OnApplicationBootstrap {
@@ -38,8 +44,9 @@ export class HandlebarsModule implements OnApplicationBootstrap {
     );
 
     for (const [key, value] of ViewConfiguration.entries()) {
-      const className = key.name;
-      global['hbs.classFn'] = key;
+      const classFn = ViewKeys.get(key);
+      const className = classFn.name;
+      global['hbs.classFn'] = classFn;
       const evaluated: Runtime.EvaluateReturnType = await post(
         'Runtime.evaluate',
         {
@@ -110,6 +117,30 @@ export class HandlebarsModule implements OnApplicationBootstrap {
       }
 
       this.logger.debug(`${className} using view directory: ${viewsPath}`);
+      try {
+        const items = await readdir(viewsPath);
+        const views = new Array<string>();
+        ViewPaths.set(key, views);
+        for (const file of items) {
+          const fullPath = path.join(viewsPath, file)
+          const statResult = await stat(fullPath);
+          if (statResult.isDirectory()) {
+            this.logger.debug(`Found ${file} but it is directory`);
+            continue;
+          }
+          const baseName = path.basename(file, '.hbs');
+          this.logger.debug(`Found ${file} and reading content..`);
+          views.push(baseName);
+          const content = await readFile(fullPath, 'utf-8');
+          const templatingFn = Handlebars.compile(content);
+          ViewTemplates.set(`${key}.${baseName}`, templatingFn);
+        }
+      } catch (error) {
+        this.logger.error(
+          `Error on reading view for ${className}: ${viewsPath}`,
+          error.stack,
+        );
+      }
     }
     delete global['hbs.classFn'];
 

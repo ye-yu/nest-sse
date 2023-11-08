@@ -122,7 +122,7 @@ export class HandlebarsModule implements OnApplicationBootstrap {
         const views = new Array<string>();
         ViewPaths.set(key, views);
         for (const file of items) {
-          const fullPath = path.join(viewsPath, file)
+          const fullPath = path.join(viewsPath, file);
           const statResult = await stat(fullPath);
           if (statResult.isDirectory()) {
             this.logger.debug(`Found ${file} but it is directory`);

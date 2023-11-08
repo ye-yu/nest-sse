@@ -94,7 +94,7 @@ export class HandlebarsModule implements OnApplicationBootstrap {
 
       try {
         const viewsPathStat = await stat(viewsPath);
-        if (viewsPathStat.isDirectory()) {
+        if (!viewsPathStat.isDirectory()) {
           const error = new Error(
             `Views path for ${className}: ${viewsPath} is not a directory`,
           );
